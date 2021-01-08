@@ -110,7 +110,7 @@ const getAllProperties = function (options, limit = 10) {
   let queryString = `
   SELECT properties.*, AVG(property_reviews.rating) as average_rating
   FROM properties
-  JOIN property_reviews ON properties.id = property_reviews.property_id
+  LEFT OUTER JOIN property_reviews ON properties.id = property_reviews.property_id
   `;
 
   // WHERE
@@ -156,9 +156,6 @@ const getAllProperties = function (options, limit = 10) {
   LIMIT $${queryParams.length};
   `;
 
-  // console.log('query:', queryString);
-  // console.log('parameters:', queryParams);
-
   return pool
     .query(queryString, queryParams)
     .then((res) => res.rows);
@@ -171,9 +168,21 @@ exports.getAllProperties = getAllProperties;
  * @return {Promise<{}>} A promise to the property.
  */
 const addProperty = function (property) {
-  const propertyId = Object.keys(properties).length + 1;
-  property.id = propertyId;
-  properties[propertyId] = property;
-  return Promise.resolve(property);
+
+  const queryParams = Object.values(property);
+ 
+  let queryString = `
+  INSERT INTO properties (title, description, number_of_bedrooms, number_of_bathrooms, parking_spaces, cost_per_night, thumbnail_photo_url, cover_photo_url, street, country, city, province, post_code, owner_id)
+  VALUES(`;
+
+  queryParams.forEach((item, index) => {
+    queryString += `${index === 0 ? '' : ', '}$${index + 1}${index === queryParams.length - 1 ? ')' : ''}`;
+  });
+
+  queryString += `
+  RETURNING *;`;
+
+  return pool.query(queryString, queryParams)
+    .then(res => res.rows);
 };
 exports.addProperty = addProperty;
